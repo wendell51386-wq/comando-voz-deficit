@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Comando de Voz - Controle de Déficit</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 680px;
+      margin: 40px auto;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 18px;
+      padding: 32px;
+      box-shadow: 0 6px 24px rgba(0,0,0,.10);
+      text-align: center;
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+    .sub {
+      color: #6b7280;
+      margin-bottom: 28px;
+    }
+    button {
+      border: 0;
+      border-radius: 12px;
+      padding: 16px 28px;
+      font-size: 19px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #2e7d32;
+      color: white;
+    }
+    button:disabled {
+      opacity: .6;
+      cursor: wait;
+    }
+    .box {
+      margin-top: 24px;
+      padding: 18px;
+      border-radius: 12px;
+      background: #f8fafc;
+      text-align: left;
+      min-height: 50px;
+      white-space: pre-wrap;
+    }
+    .label {
+      font-size: 13px;
+      font-weight: bold;
+      color: #6b7280;
+      text-transform: uppercase;
+      margin-bottom: 7px;
+    }
+    .erro {
+      color: #b91c1c;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>🎤 Comando de Voz</h1>
+      <div class="sub">Fale uma pergunta sobre o déficit de aulas.</div>
+
+      <button id="btn" onclick="ouvir()">🎤 FALAR</button>
+
+      <div class="box">
+        <div class="label">Você disse</div>
+        <div id="texto">Aguardando comando...</div>
+      </div>
+
+      <div class="box">
+        <div class="label">Resposta</div>
+        <div id="resposta">Aguardando...</div>
+      </div>
+    </div>
+  </div>
+
+<script>
+const API_URL = 'https://script.google.com/macros/s/AKfycbzuO14e0u6SlUFgfO7SNbTNX0mN0k_V6kTG6QSmCcAW5dPoQTn3ITGOTi2cAJU71la9-A/exec';
+
+function setTexto(valor, erro) {
+  const el = document.getElementById('texto');
+  el.textContent = valor;
+  el.className = erro ? 'erro' : '';
+}
+
+function setResposta(valor, erro) {
+  const el = document.getElementById('resposta');
+  el.textContent = valor;
+  el.className = erro ? 'erro' : '';
+}
+
+function ouvir() {
+  const Recognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+  if (!Recognition) {
+    setTexto('O navegador não oferece reconhecimento de voz.', true);
+    return;
+  }
+
+  const btn = document.getElementById('btn');
+  btn.disabled = true;
+  btn.textContent = '🎙️ OUVINDO...';
+  setTexto('Fale agora...', false);
+  setResposta('Processando...', false);
+
+  const reconhecimento = new Recognition();
+  reconhecimento.lang = 'pt-BR';
+  reconhecimento.continuous = false;
+  reconhecimento.interimResults = false;
+  reconhecimento.maxAlternatives = 1;
+
+  reconhecimento.onresult = function(event) {
+    const texto = event.results[0][0].transcript.trim();
+    setTexto(texto, false);
+    consultarAPI(texto);
+  };
+
+  reconhecimento.onerror = function(event) {
+    setTexto('Erro no reconhecimento: ' + event.error, true);
+    btn.disabled = false;
+    btn.textContent = '🎤 FALAR';
+  };
+
+  reconhecimento.onend = function() {
+    btn.disabled = false;
+    btn.textContent = '🎤 FALAR';
+  };
+
+  try {
+    reconhecimento.start();
+  } catch (erro) {
+    setTexto('Não foi possível iniciar o microfone: ' + erro.message, true);
+    btn.disabled = false;
+    btn.textContent = '🎤 FALAR';
+  }
+}
+
+function consultarAPI(texto) {
+  const callback = 'respostaVoz_' + Date.now();
+  const script = document.createElement('script');
+
+  window[callback] = function(resultado) {
+    try {
+      if (!resultado || resultado.sucesso !== true) {
+        setResposta(
+          resultado && resultado.resposta
+            ? resultado.resposta
+            : 'Não foi possível processar o comando.',
+          true
+        );
+      } else {
+        setResposta(resultado.resposta, false);
+      }
+    } finally {
+      delete window[callback];
+      script.remove();
+    }
+  };
+
+  script.onerror = function() {
+    setResposta('Não foi possível comunicar com o Apps Script.', true);
+    delete window[callback];
+    script.remove();
+  };
+
+  script.src =
+    API_URL +
+    '?api=voz' +
+    '&texto=' + encodeURIComponent(texto) +
+    '&callback=' + encodeURIComponent(callback);
+
+  document.body.appendChild(script);
+}
+</script>
+</body>
+</html>
