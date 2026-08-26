@@ -107,36 +107,45 @@ function consultarAPI(texto){
 
 function confirmarLancamento(){
   if(!lancamentoPendente)return;
+
   const p=lancamentoPendente;
+
   esconderConfirmacao();
   setResposta('Gravando na aba Quantitativos...');
 
   jsonp({
     api:'voz',
-    acao:'gravar_quantitativo',
-    instituicao:p.instituicao,
-    disciplina:p.disciplina,
-    periodo:p.periodo,
+    confirmar:'1',
+    linha:p.linha,
     quantidade:p.quantidade,
     modo:p.modo
   },function(resultado){
+
     lancamentoPendente=null;
 
     if(resultado&&resultado.sucesso){
-      setResposta(resultado.resposta||'Lançamento realizado com sucesso.');
 
-      // Se o Apps Script devolver uma URL, usamos diretamente.
+      setResposta(
+        resultado.resposta ||
+        'Lançamento realizado com sucesso.'
+      );
+
       if(resultado.url){
-        setTimeout(()=>{window.location.href=resultado.url;},700);
-        return;
+        setTimeout(()=>{
+          window.location.href=resultado.url;
+        },700);
       }
 
-      // Caso a API ainda não devolva a URL, apenas informa o sucesso.
-      // Não fazemos uma nova consulta que possa confundir a operação.
       return;
     }
 
-    setResposta(resultado&&resultado.resposta?resultado.resposta:'Não foi possível realizar o lançamento.',true);
+    setResposta(
+      resultado&&resultado.resposta
+        ? resultado.resposta
+        : 'Não foi possível realizar o lançamento.',
+      true
+    );
+
   });
 }
 
